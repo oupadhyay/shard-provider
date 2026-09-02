@@ -1,9 +1,11 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use super::types::*;
 
-/// Api-Revision header value to opt into the new steps schema.
-/// Becomes the default on May 26, 2026; legacy removed June 8, 2026.
+/// Api-Revision header value for the steps schema.
+///
+/// The parser also accepts legacy content event names for compatibility with
+/// older fixtures and providers that still emit them.
 pub const GEMINI_API_REVISION: &str = "2026-05-20";
 
 /// Provider events emitted by Gemini stream parsers.
@@ -21,6 +23,8 @@ pub enum GeminiStreamEvent {
         arguments: Value,
         signature: Option<String>,
     },
+    /// Interactions API thought signature emitted independently of a tool call.
+    InteractionThoughtSignature(String),
 }
 
 /// Parse a Gemini response part and extract events.
@@ -109,8 +113,8 @@ pub fn process_interactions_event(
 
     match event.event_type.as_str() {
         // Accept both new ("step.delta") and legacy ("content.delta") event names.
-        // The delta payload structure is identical — only the SSE event name changed
-        // with Api-Revision: 2026-05-20. Legacy name can be removed after June 8, 2026.
+        // The delta payload structure is identical; retaining both keeps the parser
+        // compatible with older fixtures and providers.
         "step.delta" | "content.delta" => {
             if let Some(delta) = &event.delta {
                 match delta {
@@ -147,12 +151,9 @@ pub fn process_interactions_event(
                         });
                     }
                     InteractionDelta::ThoughtSignature { signature } => {
-                        events.push(GeminiStreamEvent::InteractionToolCall {
-                            id: "".to_string(), // Partial event, signature only
-                            name: "".to_string(),
-                            arguments: json!(null),
-                            signature: Some(signature.clone()),
-                        });
+                        events.push(GeminiStreamEvent::InteractionThoughtSignature(
+                            signature.clone(),
+                        ));
                     }
                 }
             }
@@ -181,12 +182,9 @@ pub fn process_interactions_event(
                     "thought" => {
                         // Thought step.start carries the signature needed for tool calling
                         if let Some(sig) = step.get("signature").and_then(|s| s.as_str()) {
-                            events.push(GeminiStreamEvent::InteractionToolCall {
-                                id: "".to_string(),
-                                name: "".to_string(),
-                                arguments: json!(null),
-                                signature: Some(sig.to_string()),
-                            });
+                            events.push(GeminiStreamEvent::InteractionThoughtSignature(
+                                sig.to_string(),
+                            ));
                         }
                     }
                     _ => {

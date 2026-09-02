@@ -795,6 +795,51 @@ mod tests {
     }
 
     #[test]
+    fn test_process_interactions_event_thought_signature() {
+        let event = InteractionStreamEvent {
+            event_type: "step.delta".to_string(),
+            index: Some(0),
+            delta: Some(InteractionDelta::ThoughtSignature {
+                signature: "sig_xyz".to_string(),
+            }),
+            content: None,
+            interaction: None,
+            step: None,
+        };
+
+        let events = process_interactions_event(&event, &mut String::new(), &mut String::new());
+
+        assert!(matches!(
+            events.as_slice(),
+            [GeminiStreamEvent::InteractionThoughtSignature(signature)]
+                if signature == "sig_xyz"
+        ));
+    }
+
+    #[test]
+    fn test_process_interactions_step_start_thought_signature() {
+        let event = InteractionStreamEvent {
+            event_type: "step.start".to_string(),
+            index: Some(0),
+            delta: None,
+            content: None,
+            interaction: None,
+            step: Some(json!({
+                "type": "thought",
+                "signature": "sig_start"
+            })),
+        };
+
+        let events = process_interactions_event(&event, &mut String::new(), &mut String::new());
+
+        assert!(matches!(
+            events.as_slice(),
+            [GeminiStreamEvent::InteractionThoughtSignature(signature)]
+                if signature == "sig_start"
+        ));
+    }
+
+    #[test]
     fn test_process_interactions_event_accumulates() {
         let mut full_text = String::new();
         let mut full_reasoning = String::new();

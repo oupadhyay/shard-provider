@@ -8,6 +8,9 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+const ERROR_BODY_PREVIEW_BYTES: usize = 1024;
+const ERROR_BODY_PREVIEW_CHARS: usize = 200;
+
 #[derive(Debug, Clone)]
 pub struct OpenAiVisionTransportConfig {
     pub endpoint_url: String,
@@ -97,6 +100,25 @@ impl OpenAiVisionRequest {
     }
 }
 
+async fn read_error_body_preview(mut response: reqwest::Response) -> String {
+    let mut body = Vec::with_capacity(ERROR_BODY_PREVIEW_BYTES);
+
+    while body.len() < ERROR_BODY_PREVIEW_BYTES {
+        match response.chunk().await {
+            Ok(Some(chunk)) => {
+                let remaining = ERROR_BODY_PREVIEW_BYTES - body.len();
+                body.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+            }
+            Ok(None) | Err(_) => break,
+        }
+    }
+
+    String::from_utf8_lossy(&body)
+        .chars()
+        .take(ERROR_BODY_PREVIEW_CHARS)
+        .collect()
+}
+
 pub async fn analyze_image(
     client: &reqwest::Client,
     config: &OpenAiVisionTransportConfig,
@@ -104,7 +126,7 @@ pub async fn analyze_image(
 ) -> Result<String, String> {
     let response = client
         .post(&config.endpoint_url)
-        .header("Authorization", format!("Bearer {}", config.auth_token))
+        .bearer_auth(&config.auth_token)
         .header("Content-Type", "application/json")
         .timeout(config.timeout)
         .json(&request.to_wire_body())
@@ -114,8 +136,7 @@ pub async fn analyze_image(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        let body_preview = body.chars().take(200).collect::<String>();
+        let body_preview = read_error_body_preview(response).await;
         return Err(format!("Vision API error {}: {}", status, body_preview));
     }
 
@@ -245,6 +266,36 @@ mod tests {
         assert_eq!(
             error,
             "Vision API error 429 Too Many Requests: rate limited"
+        );
+    }
+
+    #[tokio::test]
+    async fn truncates_large_error_body_preview() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("x".repeat(4096)))
+            .mount(&server)
+            .await;
+
+        let error = analyze_image(
+            &reqwest::Client::new(),
+            &OpenAiVisionTransportConfig {
+                endpoint_url: format!("{}/v1/chat/completions", server.uri()),
+                auth_token: "test-token".to_string(),
+                timeout: Duration::from_secs(5),
+            },
+            &request(),
+        )
+        .await
+        .expect_err("HTTP failure should be reported");
+
+        assert_eq!(
+            error,
+            format!(
+                "Vision API error 500 Internal Server Error: {}",
+                "x".repeat(200)
+            )
         );
     }
 

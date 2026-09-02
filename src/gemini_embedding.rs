@@ -74,6 +74,14 @@ pub async fn generate_multimodal_embedding(
     images_mime_types: &[String],
     config: &GeminiEmbeddingConfig,
 ) -> Result<Vec<f32>, String> {
+    if images_base64.len() != images_mime_types.len() {
+        return Err(format!(
+            "Image data/MIME type length mismatch: images={}, MIME types={}",
+            images_base64.len(),
+            images_mime_types.len()
+        ));
+    }
+
     let mut parts = Vec::with_capacity(1 + images_base64.len());
 
     parts.push(EmbeddingPart::Text {
@@ -277,5 +285,42 @@ mod tests {
         .expect("multimodal embedding should succeed");
 
         assert_eq!(values, vec![0.5, 0.75]);
+    }
+
+    #[tokio::test]
+    async fn multimodal_embedding_rejects_mismatched_image_metadata() {
+        let config = GeminiEmbeddingConfig {
+            endpoint_url: "http://127.0.0.1:1/unused".to_string(),
+            auth_token: "test-gemini".to_string(),
+            output_dimensionality: None,
+        };
+
+        let extra_image = generate_multimodal_embedding(
+            &reqwest::Client::new(),
+            "a diagram",
+            &["first".to_string(), "second".to_string()],
+            &["image/png".to_string()],
+            &config,
+        )
+        .await
+        .expect_err("extra image data should be rejected");
+        assert_eq!(
+            extra_image,
+            "Image data/MIME type length mismatch: images=2, MIME types=1"
+        );
+
+        let extra_mime = generate_multimodal_embedding(
+            &reqwest::Client::new(),
+            "a diagram",
+            &["first".to_string()],
+            &["image/png".to_string(), "image/jpeg".to_string()],
+            &config,
+        )
+        .await
+        .expect_err("extra MIME type should be rejected");
+        assert_eq!(
+            extra_mime,
+            "Image data/MIME type length mismatch: images=1, MIME types=2"
+        );
     }
 }
