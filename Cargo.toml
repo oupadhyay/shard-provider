@@ -3,6 +3,8 @@ name = "shard-provider"
 version = "0.1.0"
 description = "Host-free provider transports and wire contracts for Shard"
 edition = "2021"
+readme = "README.md"
+repository = "https://github.com/oupadhyay/shard-provider"
 publish = false
 
 [dependencies]
