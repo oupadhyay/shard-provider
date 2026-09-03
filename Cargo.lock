@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "shard-tool-api"
 version = "0.1.0"
-source = "git+https://github.com/oupadhyay/shard-tool-api?rev=270c0745e6f4ed3c88f46820023c21d50194050f#270c0745e6f4ed3c88f46820023c21d50194050f"
+source = "git+https://github.com/oupadhyay/shard-tool-api?rev=aea826a9e64b3035843aa8800f2f6c0f5fbe8b9a#aea826a9e64b3035843aa8800f2f6c0f5fbe8b9a"
 dependencies = [
  "serde",
  "serde_json",
