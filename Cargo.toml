@@ -13,7 +13,7 @@ log = "0.4"
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-shard-tool-api = { git = "https://github.com/oupadhyay/shard-tool-api", rev = "270c0745e6f4ed3c88f46820023c21d50194050f" }
+shard-tool-api = { git = "https://github.com/oupadhyay/shard-tool-api", rev = "aea826a9e64b3035843aa8800f2f6c0f5fbe8b9a" }
 uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]

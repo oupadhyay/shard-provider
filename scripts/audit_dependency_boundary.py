@@ -8,7 +8,7 @@ import sys
 
 PACKAGE = "shard-provider"
 EXPECTED_REPOSITORY = "https://github.com/oupadhyay/shard-provider"
-TOOL_API_REVISION = "270c0745e6f4ed3c88f46820023c21d50194050f"
+TOOL_API_REVISION = "aea826a9e64b3035843aa8800f2f6c0f5fbe8b9a"
 EXPECTED_TOOL_API_SOURCE = (
     "git+https://github.com/oupadhyay/shard-tool-api"
     f"?rev={TOOL_API_REVISION}#{TOOL_API_REVISION}"
